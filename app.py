@@ -8,7 +8,7 @@ import pandas as pd
 st.set_page_config(layout="wide")
 
 # --- Constants ---
-TARGET_POMODOROS = 12000  # Total intended Pomodoros
+TARGET_POMODOROS = 13000  # Total intended Pomodoros
 PAGE_SIZE = 100           # Number of rows to display at once
 
 # Get credentials from secrets
