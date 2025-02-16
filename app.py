@@ -1,101 +1,101 @@
 import streamlit as st
-import sqlite3
-import pandas as pd
+import psycopg2
 from datetime import datetime, timedelta
 import math
+import pandas as pd
 
-# Set page to wide mode
-st.set_page_config(layout="wide")
+# Get credentials from secrets
+db_config = st.secrets["postgres"]
 
-# --- Constants ---
-TARGET_POMODOROS = 12000  # Total intended Pomodoros
-PAGE_SIZE = 100           # Number of rows to display at once
+def get_connection():
+    return psycopg2.connect(
+        host=db_config.host,
+        dbname=db_config.dbname,
+        user=db_config.user,
+        password=db_config.password
+    )
 
-# --- Database Helper Functions ---
 def init_db():
-    """Initialize the SQLite database and table if it doesn't exist."""
-    conn = sqlite3.connect("data.db")
+    """Initialize the PostgreSQL database and table if it doesn't exist."""
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS pomodoros (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             description TEXT,
-            timestamp TEXT
+            timestamp TIMESTAMP
         )
     """)
     conn.commit()
+    cursor.close()
     conn.close()
 
 def add_pomodoro(description: str):
     """Insert a new Pomodoro with a description and the current timestamp."""
-    conn = sqlite3.connect("data.db")
+    conn = get_connection()
     cursor = conn.cursor()
-    now = datetime.now().isoformat(timespec="seconds")
-    cursor.execute("INSERT INTO pomodoros (description, timestamp) VALUES (?, ?)", (description, now))
+    now = datetime.now()
+    cursor.execute("INSERT INTO pomodoros (description, timestamp) VALUES (%s, %s)", (description, now))
     conn.commit()
+    cursor.close()
     conn.close()
 
 def remove_pomodoro(pomo_id: int):
     """Remove a Pomodoro record by its database ID."""
-    conn = sqlite3.connect("data.db")
+    conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM pomodoros WHERE id = ?", (pomo_id,))
+    cursor.execute("DELETE FROM pomodoros WHERE id = %s", (pomo_id,))
     conn.commit()
+    cursor.close()
     conn.close()
 
 def get_all_pomodoros():
-    """
-    Retrieve all completed Pomodoro records (id, description, timestamp),
-    sorted by ascending ID.
-    """
-    conn = sqlite3.connect("data.db")
+    """Retrieve all completed Pomodoro records (id, description, timestamp)."""
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT id, description, timestamp FROM pomodoros ORDER BY id ASC")
     data = cursor.fetchall()
+    cursor.close()
     conn.close()
     return data
 
 def get_total_pomodoros() -> int:
     """Return the count of completed Pomodoros."""
-    conn = sqlite3.connect("data.db")
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT COUNT(*) FROM pomodoros")
     count = cursor.fetchone()[0]
+    cursor.close()
     conn.close()
     return count
 
 def get_last_description() -> str:
     """Return the description from the most recent Pomodoro, if available."""
-    conn = sqlite3.connect("data.db")
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT description FROM pomodoros ORDER BY id DESC LIMIT 1")
     row = cursor.fetchone()
+    cursor.close()
     conn.close()
     return row[0] if row else ""
 
 def count_pomodoros_since(days: int) -> int:
-    """
-    Return how many pomodoros have been completed in the last `days` days.
-    Looks at timestamps in ISO format and compares to the cutoff datetime.
-    """
+    """Return how many pomodoros have been completed in the last `days` days."""
     cutoff = datetime.now() - timedelta(days=days)
-    conn = sqlite3.connect("data.db")
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT timestamp FROM pomodoros")
     rows = cursor.fetchall()
+    cursor.close()
     conn.close()
 
     count = 0
     for (ts,) in rows:
-        try:
-            ts_dt = datetime.fromisoformat(ts)
-            if ts_dt >= cutoff:
-                count += 1
-        except:
-            pass
+        if ts >= cutoff:
+            count += 1
     return count
 
-# --- Initialization ---
+# Initialize the database
 init_db()
 
 # --- Sidebar: Add a Pomodoro ---
