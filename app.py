@@ -4,6 +4,13 @@ from datetime import datetime, timedelta
 import math
 import pandas as pd
 
+# Set page to wide mode
+st.set_page_config(layout="wide")
+
+# --- Constants ---
+TARGET_POMODOROS = 12000  # Total intended Pomodoros
+PAGE_SIZE = 100           # Number of rows to display at once
+
 # Get credentials from secrets
 db_config = st.secrets["postgres"]
 
